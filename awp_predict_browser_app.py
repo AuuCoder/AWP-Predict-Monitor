@@ -657,6 +657,7 @@ HTML = """<!doctype html>
     .toolbar input { width: 220px; margin-top: 0; }
     .toolbar label { margin-top: 0; display:flex; align-items:center; gap:6px; }
     .pager { display:flex; gap:8px; align-items:center; margin-top:10px; }
+    .group-title { margin-top: 14px; font-size: 13px; color: #555; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -665,11 +666,12 @@ HTML = """<!doctype html>
       <div class="status" id="step">启动中...</div>
       <div class="muted">数据目录：<code id="dataDir"></code></div>
       <div class="muted">Fleet 文件：<code id="fleetFile"></code></div>
+      <div class="muted">提示：钱包卡片状态仅供参考。真实预测是否成功，请打开对应监控页（例如 `http://127.0.0.1:8791/dashboard`）查看。</div>
+      <div class="muted">如果出现分配数量异常或大于预期，建议先去官网取消分配，再回到软件里重新分配。</div>
       <div class="error" id="error"></div>
       <div class="row">
         <button onclick="act('bootstrap')">重新检查依赖</button>
-        <button class="secondary" onclick="act('open-default')">创建/打开默认钱包</button>
-        <button class="secondary" onclick="act('health-all')">检查全部健康</button>
+        <button class="secondary" onclick="act('force-refresh')">强制刷新钱包状态</button>
       </div>
     </div>
     <div class="grid">
@@ -731,27 +733,28 @@ HTML = """<!doctype html>
     </div>
     <div class="panel">
       <strong>钱包列表与批量操作</strong>
+      <div class="group-title">选择</div>
       <div class="actions">
         <button onclick="toggleAll(true)">全选</button>
         <button class="secondary" onclick="toggleAll(false)">取消全选</button>
-        <button class="secondary" onclick="act('force-refresh')">强制刷新钱包状态</button>
+      </div>
+      <div class="group-title">钱包管理</div>
+      <div class="actions">
         <button class="secondary" onclick="actJson('delete-selected', selectedPayload())">删除选中钱包</button>
+        <button class="secondary" onclick="act('force-refresh')">强制刷新钱包状态</button>
+      </div>
+      <div class="group-title">AWP 操作</div>
+      <div class="actions">
         <button class="secondary" onclick="actJson('register-selected', selectedPayload())">注册 AWP</button>
-        <button onclick="actJson('start-selected', selectedPayload())">启动预测</button>
-        <button class="secondary" onclick="actJson('stop-selected', selectedPayload())">停止预测</button>
-        <button class="secondary" onclick="actJson('status-selected', selectedPayload())">状态</button>
-        <button class="secondary" onclick="actJson('balance-selected', selectedPayload())">余额</button>
-        <button class="secondary" onclick="actJson('history-selected', selectedPayload())">历史</button>
-        <button class="secondary" onclick="actJson('health-selected', selectedPayload())">健康</button>
         <button class="secondary" onclick="actJson('stake-selected', stakeSelectedPayload())">质押 AWP</button>
         <button class="secondary" onclick="actJson('allocate-selected', allocateSelectedPayload())">分配到 Predict</button>
+        <button class="secondary" onclick="actJson('deallocate-selected', allocateSelectedPayload())">取消分配</button>
         <button class="secondary" onclick="actJson('stake-allocate-selected', stakeAllocateSelectedPayload())">质押并分配</button>
       </div>
+      <div class="group-title">预测控制</div>
       <div class="actions">
-        <button onclick="actJson('start-all', {})">一键启动全部钱包预测</button>
-        <button class="secondary" onclick="actJson('health-all', {})">一键检查全部健康</button>
-        <button class="secondary" onclick="actJson('wallet-list', {})">刷新钱包列表</button>
-        <button class="secondary" onclick="actJson('profile-list', {})">刷新 Profile 列表</button>
+        <button onclick="actJson('start-selected', selectedPayload())">启动预测</button>
+        <button class="secondary" onclick="actJson('stop-selected', selectedPayload())">停止预测</button>
       </div>
       <div id="walletList"></div>
     </div>
@@ -1252,6 +1255,22 @@ class Handler(BaseHTTPRequestHandler):
                 names,
                 lambda name: [
                     "allocate",
+                    name,
+                    "--amount",
+                    str(body.get("amount", "1000")),
+                    "--worknet",
+                    str(body.get("worknet", "845300000003")),
+                ],
+            )
+        elif action == "deallocate-selected":
+            names = body.get("names") or []
+            if not names:
+                return self.send_json(400, {"error": "no wallets selected"})
+            run_wallet_batch(
+                "批量取消分配",
+                names,
+                lambda name: [
+                    "deallocate",
                     name,
                     "--amount",
                     str(body.get("amount", "1000")),

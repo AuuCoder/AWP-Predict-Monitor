@@ -919,6 +919,47 @@ def cmd_allocate(args: argparse.Namespace) -> None:
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
+def cmd_deallocate(args: argparse.Namespace) -> None:
+    cfg, fleet_file = fleet_cfg(args)
+    fleet = load_fleet(fleet_file)
+    targets = pick_wallets(args, fleet)
+    out = []
+    for name in targets:
+        wallet = fleet["wallets"][name]
+        env, _env_data, wallet_info = _awp_env_and_wallet(name, wallet, fleet, cfg)
+        script_name = "onchain-deallocate.py" if args.mode == "onchain" else "relay-allocate.py"
+        script_path = cfg.skill_scripts_dir / script_name
+        manager.ensure_file(script_path)
+        cmd = ["/usr/bin/python3", str(script_path)]
+        if args.mode == "onchain":
+            if args.token:
+                cmd.extend(["--token", args.token])
+            cmd.extend([
+                "--agent",
+                args.agent or wallet_info["address"],
+                "--worknet",
+                str(args.worknet or manager.DEFAULT_WORKNET_ID),
+                "--amount",
+                str(args.amount),
+            ])
+        else:
+            if args.token:
+                cmd.extend(["--token", args.token])
+            cmd.extend([
+                "--mode",
+                "deallocate",
+                "--agent",
+                args.agent or wallet_info["address"],
+                "--worknet",
+                str(args.worknet or manager.DEFAULT_WORKNET_ID),
+                "--amount",
+                str(args.amount),
+            ])
+        out.append(_run_awp_action(name=name, action="deallocate", cmd=cmd, env=env, cwd=cfg.project_dir))
+    save_fleet(fleet_file, fleet)
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
 def cmd_stake_allocate(args: argparse.Namespace) -> None:
     cfg, fleet_file = fleet_cfg(args)
     fleet = load_fleet(fleet_file)
@@ -1080,6 +1121,17 @@ def build_parser() -> argparse.ArgumentParser:
     allocate.add_argument("--mode", choices=["relay", "onchain"], default="relay")
     allocate.add_argument("--token")
     allocate.set_defaults(func=cmd_allocate)
+
+    deallocate = sub.add_parser("deallocate", help="Deallocate veAWP from Predict for one wallet or all wallets")
+    add_common_args(deallocate)
+    deallocate.add_argument("name", nargs="?")
+    deallocate.add_argument("--all", action="store_true")
+    deallocate.add_argument("--amount", required=True)
+    deallocate.add_argument("--worknet", default=manager.DEFAULT_WORKNET_ID)
+    deallocate.add_argument("--agent")
+    deallocate.add_argument("--mode", choices=["relay", "onchain"], default="relay")
+    deallocate.add_argument("--token")
+    deallocate.set_defaults(func=cmd_deallocate)
 
     stake_allocate = sub.add_parser("stake-allocate", help="Stake AWP and allocate to Predict in one action")
     add_common_args(stake_allocate)

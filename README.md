@@ -1,352 +1,492 @@
-# AWP Predict Multi-Wallet Pack
+# AWP Predict Fleet
 
-这套目录现在支持两种运行方式：
+`AWP Predict Fleet` 是一个面向 **AWP Predict WorkNet** 的本地多钱包控制台。
 
-1. 单钱包默认实例
-2. 多钱包实例化 `systemd` 服务
+它的目标是让用户用一个本地应用完成这些事情：
 
-另外新增了一份给用户直接使用的单文件入口：
+- 创建和管理多个钱包
+- 配置不同钱包使用的模型、`base-url`、`api-key`
+- 执行 AWP 注册、质押、分配到 Predict
+- 启动和停止预测循环
+- 查看余额、历史预测、健康状态
+- 查看日志并导出
 
-- [awp_predict_manager.py](/Users/chole/项目/bot/awp-predict/awp_predict_manager.py)
+当前主界面是：
+
+- `AWP Predict Fleet.app`
+- 或本地浏览器控制台
+
+不是旧的 Tk 原生窗口模式。
+
+---
+
+## 功能概览
+
+### 钱包管理
+
+- 创建新钱包
+- 恢复已有钱包
+- 钱包列表展示
+- 删除钱包
+- 支持钱包备注/实例名
+
+### AWP 动作
+
+- `注册 AWP`
+- `质押 AWP`
+- `分配到 Predict`
+- `取消分配`
+- `质押并分配`
+
+### 预测控制
+
+- 启动预测
+- 停止预测
+- 查看运行状态
+- 查看余额
+- 查看历史预测
+- 健康检查
+
+### 日志功能
+
+- `[时间][钱包名][级别] 内容`
+- 按钱包过滤
+- 只看 `ERROR`
+- 导出日志文件
+- 分页查看
+
+---
+
+## 当前默认值
+
+- 默认模型：`gpt-5.4`
+- 默认锁仓天数：`3`
+- 默认目标 WorkNet：`845300000003`
+
+也就是：
+
+- `Predict WorkNet`
+
+---
+
+## 目录结构
+
+### 核心脚本
+
+- [awp_predict_browser_app.py](/Users/chole/项目/bot/awp-predict/awp_predict_browser_app.py)
 - [awp_predict_fleet.py](/Users/chole/项目/bot/awp-predict/awp_predict_fleet.py)
+- [awp_predict_manager.py](/Users/chole/项目/bot/awp-predict/awp_predict_manager.py)
+- [predict_loop.py](/Users/chole/项目/bot/awp-predict/predict_loop.py)
+- [predict_monitor.py](/Users/chole/项目/bot/awp-predict/predict_monitor.py)
 
-它现在能做这些事：
+### 配置与模板
 
-- 首次自动生成钱包
-- 首次返回钱包地址和私钥，后续复用同一个钱包
-- 默认模型使用 `gpt-5.4`
-- 支持改成 `gpt-5`、`gpt-5.4` 等其他模型
-- 支持外置 `config.json` 保存 `model / base-url / api-key`
-- 手动 stake AWP
-- 一键启动预测后台
-- 自动分配不重复的 monitor 端口
-- 查询钱包地址 / 私钥 / 服务状态
+- [config.py](/Users/chole/项目/bot/awp-predict/config.py)
+- [examples/default.env.example](/Users/chole/项目/bot/awp-predict/examples/default.env.example)
+- [examples/wallet02.env.example](/Users/chole/项目/bot/awp-predict/examples/wallet02.env.example)
 
-如果你要的是“一个程序直接控制多个钱包”，优先用：
+### 依赖目录
 
-- `awp_predict_fleet.py`
+- [vendor/awp-skill](/Users/chole/项目/bot/awp-predict/vendor/awp-skill)
+- [vendor/awp-wallet](/Users/chole/项目/bot/awp-predict/vendor/awp-wallet)
 
-当前 mac 软件版会：
+### 打包脚本
 
-- 双击后启动本地服务
-- 自动打开浏览器向导页
-- 在页面里实时显示当前步骤和日志
+- [build_mac_app.sh](/Users/chole/项目/bot/awp-predict/scripts/build_mac_app.sh)
 
-首开时还会自动做这些事：
+---
 
-- 如果本机没有 `~/.codex/skills/awp-skill`
-- 就从软件自带的 `vendor/awp-skill` 自动安装
+## 数据目录
 
-Mac 软件的数据目录现在不再默认写到 `~/Library/Application Support/...`，
-而是跟着软件文件所在目录走：
+macOS 应用当前默认把数据放在 **app 同目录**：
 
 ```text
 AWP Predict Fleet.app
 awp-predict-data/
 ```
 
-其中会保存：
+其中包括：
 
 - `fleet.json`
+- `app.log`
+- `awp-chain-cache.json`
 - `wallets/`
 - `env/`
+- `runtime/`
 
-它额外支持：
+关键文件：
 
-- 多钱包集中管理
-- 多钱包共享同一套 profile
-- 单个钱包独立覆盖模型 / base-url / api-key
-- 单个和批量查询余额
-- 单个和批量查询历史预测
-- 一键检查所有钱包预测状态是否正常
+- `awp-predict-data/fleet.json`
+  多钱包主配置
 
-核心思路：
+- `awp-predict-data/app.log`
+  主日志
 
-- `gateway` 继续共用一套 `awp-predict-gateway.service`
-- 每个钱包单独起一套：
-  - `awp-predict-loop@<instance>`
-  - `awp-predict-monitor@<instance>`
-- 每个实例只需要一份独立 env 文件：
-  - `/etc/awp-predict/<instance>.env`
+- `awp-predict-data/awp-chain-cache.json`
+  AWP 链上状态缓存
 
-## 文件结构
+---
 
-- `predict_loop.py`
-  预测 loop，已经改成从环境变量读取钱包路径、实例名、服务名
-- `predict_monitor.py`
-  监控面板，已经改成从环境变量读取端口、服务名、journal unit
-- `predict-loop.sh`
-  统一启动入口，启动前自动导出当前钱包私钥和地址
-- `systemd/awp-predict-loop@.service`
-  多实例 loop 模板
-- `systemd/awp-predict-monitor@.service`
-  多实例 monitor 模板
-- `examples/default.env.example`
-  单钱包默认示例
-- `examples/wallet02.env.example`
-  第二个钱包示例
+## 界面上会显示哪些状态
 
-## 推荐目录
+每个钱包卡片当前会展示：
 
-共享代码目录：
+- 备注
+- 地址
+- 配置组
+- 模型
+- 监控端口
+- 运行状态
+- 预测循环
+- 监控服务
+- 是否可预测
+- 余额
+- 是否已注册 AWP
+- 已质押 AWP
+- 已分配 AWP
+- 是否已分配到 Predict
+- 每日次数
+- 最近成功提交
+- 最近错误
 
-```bash
-/srv/awp-predict
+说明：
+
+- 钱包卡片状态适合作为快速参考
+- **真实预测是否成功**，建议打开对应监控页确认，例如：
+  - `http://127.0.0.1:8791/dashboard`
+
+---
+
+## macOS 使用方式
+
+### 直接运行
+
+当前已提供 macOS 应用包：
+
+```text
+dist/AWP Predict Fleet.app
 ```
 
-实例 env：
+双击后会：
+
+1. 启动本地控制台服务
+2. 自动打开浏览器页面
+3. 显示钱包、AWP 状态、预测状态、日志
+
+### 重新打包 macOS 版本
+
+在项目目录执行：
 
 ```bash
-/etc/awp-predict/default.env
-/etc/awp-predict/wallet02.env
-/etc/awp-predict/wallet03.env
+cd /Users/chole/项目/bot/awp-predict
+bash scripts/build_mac_app.sh
 ```
 
-钱包目录示例：
+生成结果：
+
+```text
+dist/AWP Predict Fleet.app
+```
+
+---
+
+## Linux 版本打包说明
+
+当前仓库没有现成的 `build_linux.sh` 成品脚本，但结构已经适合整理为 Linux 便携版。
+
+推荐步骤：
+
+### 1. 准备 Linux 环境
+
+确保有：
+
+- `python3`
+- `node`
+- `git`
+
+### 2. 获取源码
 
 ```bash
-/srv/awp-miner/.wallet
-/srv/awp-wallets/wallet02/.wallet
-/srv/awp-wallets/wallet03/.wallet
+git clone <your-repo>
+cd awp-predict
 ```
 
-## 单钱包默认实例
+### 3. 安装运行依赖
 
-复制默认 env：
+Linux 版推荐先按源码模式运行：
 
 ```bash
-mkdir -p /etc/awp-predict
-cp /srv/awp-predict/examples/default.env.example /etc/awp-predict/default.env
+python3 awp_predict_browser_app.py
 ```
 
-安装 service：
+如果要做便携包，建议打成：
+
+```text
+awp-predict-linux/
+  awp_predict_browser_app.py
+  awp_predict_fleet.py
+  predict_loop.py
+  predict_monitor.py
+  vendor/
+  examples/
+  scripts/
+```
+
+然后配一个启动脚本，例如：
 
 ```bash
-cp /srv/awp-predict/systemd/awp-predict-gateway.service /etc/systemd/system/
-cp /srv/awp-predict/systemd/awp-predict-loop.service /etc/systemd/system/
-cp /srv/awp-predict/systemd/awp-predict-monitor.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now awp-predict-gateway awp-predict-loop awp-predict-monitor
+#!/usr/bin/env bash
+set -e
+python3 awp_predict_browser_app.py
 ```
 
-## 多钱包实例
+### 4. 打包建议
 
-以 `wallet02` 为例：
+可以选择：
 
-1. 准备 env
+- `.tar.gz` 便携包
+- `systemd` 部署包
+- 直接源码运行
 
-```bash
-mkdir -p /etc/awp-predict
-cp /srv/awp-predict/examples/wallet02.env.example /etc/awp-predict/wallet02.env
+---
+
+## Windows 版本打包说明
+
+当前仓库没有现成的 `build_windows.bat` / `build_windows.ps1` 成品脚本，但可以按下面方式整理。
+
+### 1. 准备 Windows 环境
+
+建议准备：
+
+- Python 3
+- Node.js
+- Git
+
+### 2. 获取源码
+
+```powershell
+git clone <your-repo>
+cd awp-predict
 ```
 
-2. 修改这些字段
+### 3. 先以源码方式运行
 
-- `AWP_WALLET_HOME`
-- `AWP_AGENT_ID`
-- `AWP_PREDICT_MONITOR_PORT`
-- `AWP_PREDICT_LOOP_SERVICE`
-- `AWP_PREDICT_MONITOR_SERVICE`
-- `AWP_PREDICT_LOOP_JOURNAL_UNIT`
-
-3. 安装模板 service
-
-```bash
-cp /srv/awp-predict/systemd/awp-predict-loop@.service /etc/systemd/system/
-cp /srv/awp-predict/systemd/awp-predict-monitor@.service /etc/systemd/system/
-systemctl daemon-reload
+```powershell
+python awp_predict_browser_app.py
 ```
 
-4. 启动实例
+### 4. 打包思路
 
-```bash
-systemctl enable --now awp-predict-loop@wallet02
-systemctl enable --now awp-predict-monitor@wallet02
+Windows 版推荐先做成：
+
+- 源码目录 + 启动脚本
+- 或后续再封装成 `.exe`
+
+一个最简单的启动脚本示例：
+
+```powershell
+python awp_predict_browser_app.py
 ```
 
-如果 `gateway` 还没启动，再补：
+### 5. 实际建议
 
-```bash
-systemctl enable --now awp-predict-gateway
-```
+因为这个项目依赖：
 
-## 常用检查
+- Python
+- Node runtime
+- `awp-wallet`
+- `predict-agent`
 
-看服务：
+Windows 版最稳的方案通常是：
 
-```bash
-systemctl status awp-predict-gateway awp-predict-loop@wallet02 awp-predict-monitor@wallet02 --no-pager
-```
+1. 先在 Windows 环境里把源码跑通
+2. 再决定是否做 `.exe` 封装
 
-看 loop 日志：
+---
 
-```bash
-journalctl -u awp-predict-loop@wallet02 -n 80 --no-pager
-```
+## AWP / Predict 操作建议
 
-看监控接口：
+### 标准流程
 
-```bash
-curl -s http://127.0.0.1:8792/api/dashboard
-```
+1. 创建钱包
+2. 注册 AWP
+3. 向钱包转入 AWP
+4. 质押
+5. 分配到 Predict
+6. 启动预测
 
-## 关键约束
+## App 使用流程
 
-- 每个实例的 `AWP_WALLET_HOME` 必须不同
-- 每个实例的 `AWP_AGENT_ID` 最好不同
-- 每个实例的 `AWP_PREDICT_MONITOR_PORT` 必须不同
-- 目前设计为多个钱包共用一套 `gateway`
-- `query-status.py` 可能滞后，最终以链上与实际提交结果为准
+如果用户是第一次使用 app，推荐按下面顺序操作：
 
-## 单文件入口用法
+### 1. 创建钱包
 
-### 单钱包入口
+- 打开 `AWP Predict Fleet.app`
+- 在“创建新钱包”区域填写：
+  - 钱包名
+  - 可选的备注/配置组
+- 点击：
+  - `创建/打开钱包`
 
-首开程序，如果没有钱包就自动创建：
+建议：
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py open
-```
+- 钱包名使用英文、数字、`-`、`_`
+- 例如：
+  - `default`
+  - `default1`
+  - `wallet02`
 
-默认会使用 `default` 实例。
+### 2. 注册 AWP
 
-- 第一次执行：自动建钱包，返回地址和私钥
-- 后续执行：复用老钱包，不再新建
+- 在钱包列表里勾选刚创建的钱包
+- 点击：
+  - `注册 AWP`
 
-如果要开第二个钱包：
+完成后，钱包应当至少具备：
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py open wallet02
-```
+- 已注册 AWP
 
-默认模型是 `gpt-5.4`。如果要自定义：
+### 3. 外部转入 AWP
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py open wallet03 \
-  --model gpt-5 \
-  --base-url https://your-api.example/v1
-```
+- 把 AWP 转到该钱包地址
+- 等链上到账
 
-每个实例会生成：
+### 4. 质押并分配
 
-- `config.json`
-- `*.env`
-- 钱包目录
+- 在页面里设置：
+  - `AWP 数量`
+  - `锁定天数`
+  - `Worknet = 845300000003`
+- 勾选目标钱包
+- 点击：
+  - `质押并分配`
 
-其中 `config.json` 是给用户改的，路径类似：
+当前默认锁定天数：
 
-```bash
-/srv/awp-wallets/default/config.json
-/srv/awp-wallets/wallet02/config.json
-```
+- `3 天`
 
-你需要在 `config.json` 里填：
+### 5. 检查是否分配到 Predict
 
-- `openai.api_key`
-- `openai.base_url`
-- `openai.model`
+钱包卡片里重点看这些字段：
 
-查看钱包地址：
+- `是否已注册 AWP`
+- `已质押 AWP`
+- `已分配 AWP`
+- `是否已分配到 Predict`
+- `是否可预测`
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py wallet default
-```
+如果平台还没放行，日志里可能会出现：
 
-查看钱包私钥：
+- `Stake gate`
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py wallet default --show-private-key
-```
+### 6. 启动预测
 
-手动质押并分配到 Predict：
+- 勾选目标钱包
+- 点击：
+  - `启动预测`
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py stake default \
-  --amount 1000 \
-  --lock-days 3
-```
+启动后重点观察：
 
-外部转入 AWP 并完成 stake 后，再手动一键启动预测：
+- `运行状态`
+- `预测循环`
+- `监控服务`
+- `最近成功提交`
+- `每日次数`
+- `最近错误`
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py start default
-```
+### 7. 查看日志
 
-`start` 会同时拉起：
+如果要确认程序当前在做什么，可以看日志区：
 
-- 预测 loop
-- monitor
-- 共用 gateway
+- 支持按钱包过滤
+- 支持只看 `ERROR`
+- 支持分页
+- 支持导出
 
-也就是你说的“启动检测功能后，维活程序也一起启动”。
+推荐重点看：
 
-修改模型：
+- 是否有新的 `txHash`
+- 是否有 `Stake gate`
+- 是否有模型上游错误
+- 是否有新的成功提交记录
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py config default \
-  --model gpt-5 \
-  --api-key sk-xxxx \
-  --restart
-```
+### 当前项目里推荐使用的动作
 
-查看后台状态：
+- `注册 AWP`
+- `质押 AWP`
+- `分配到 Predict`
+- `质押并分配`
 
-```bash
-python3 /srv/awp-predict/awp_predict_manager.py status default
-```
+### 说明
 
-### 多钱包舰队入口
+`质押 AWP` 和 `分配到 Predict` 是两个不同动作。  
+如果需要一步完成，使用：
 
-首开默认钱包：
+- `质押并分配`
 
-```bash
-python3 /srv/awp-predict/awp_predict_fleet.py open
-```
+如果需要把已经分配出去的额度收回，使用：
 
-创建共享 profile：
+- `取消分配`
 
-```bash
-python3 /srv/awp-predict/awp_predict_fleet.py profile-set common \
-  --model gpt-5.4 \
-  --base-url https://your-api.example/v1 \
-  --api-key sk-xxxx
-```
+---
 
-让多个钱包共用同一套配置：
+## 常见注意事项
 
-```bash
-python3 /srv/awp-predict/awp_predict_fleet.py open wallet02 --profile common
-python3 /srv/awp-predict/awp_predict_fleet.py open wallet03 --profile common
-```
+### 1. 钱包名建议使用英文/数字
 
-让单个钱包独立覆盖配置：
+推荐：
 
-```bash
-python3 /srv/awp-predict/awp_predict_fleet.py wallet-config wallet03 \
-  --model gpt-5 \
-  --api-key sk-wallet03
-```
+- `default`
+- `default1`
+- `wallet02`
 
-批量启动全部钱包：
+不推荐直接用中文作为底层钱包标识。
 
-```bash
-python3 /srv/awp-predict/awp_predict_fleet.py start --all
-```
+### 2. 平台放行比页面显示更重要
 
-一键检查全部钱包是否正常：
+即使页面显示已分配，最终还是要看：
 
-```bash
-python3 /srv/awp-predict/awp_predict_fleet.py health --all
-```
+- 平台是否放行预测提交
 
-批量看余额：
+### 3. 链上结果优先级最高
 
-```bash
-python3 /srv/awp-predict/awp_predict_fleet.py balance --all
-```
+和 AWP 相关的操作，最可信的是：
 
-批量看历史：
+- 链上交易回执
+- 官方 AWP API
+- Predict 平台实际返回
 
-```bash
-python3 /srv/awp-predict/awp_predict_fleet.py history --all --limit 5
-```
+---
+
+## 常见问题
+
+### 1. 钱包卡片显示和预期不一致
+
+钱包卡片的状态可能会因为：
+
+- 平台延迟
+- AWP 官方状态口径不一致
+- 缓存更新时差
+
+出现短时间不一致。
+
+如果你要确认 **真实预测是否已经成功**，优先查看：
+
+- `http://127.0.0.1:8791/dashboard`
+- 或对应钱包 monitor 页面
+
+### 2. 分配数量异常或大于预期
+
+如果你在官网看到：
+
+- 分配数量不对
+- 或者像是“叠加分配”
+
+建议先：
+
+1. 去官网执行取消分配
+2. 回到软件中重新执行分配
+
+当前 app 里也已经提供：
+
+- `取消分配`
