@@ -1,0 +1,15 @@
+[Unit]
+Description=AWP Predict OpenClaw Gateway
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/awp-predict/default.env
+WorkingDirectory=/srv/awp-predict
+Environment=HOME=/srv/awp-predict
+ExecStart=/srv/awp-predict/.openclaw/bin/openclaw gateway run --force
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

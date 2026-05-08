@@ -1,0 +1,21 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+# Local build outputs
+dist/
+
+# Local runtime / temp state
+*.pid
+*.log
+
+# macOS app/runtime cache
+awp-predict-data/
+
+# Ignore nested vendor repo metadata, keep source files
+vendor/*/.git/
+vendor/*/.gitignore
+
+# Common local editor / OS noise
+.idea/
+.vscode/

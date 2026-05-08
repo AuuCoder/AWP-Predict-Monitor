@@ -1,0 +1,15 @@
+[Unit]
+Description=AWP Predict Agent Loop
+After=network.target awp-predict-gateway.service
+Requires=awp-predict-gateway.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/awp-predict/default.env
+WorkingDirectory=/srv/awp-predict
+ExecStart=/srv/awp-predict/predict-loop.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

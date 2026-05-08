@@ -1,0 +1,15 @@
+[Unit]
+Description=AWP Predict Monitor Dashboard (%i)
+After=network.target awp-predict-gateway.service awp-predict-loop@%i.service
+Requires=awp-predict-gateway.service awp-predict-loop@%i.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/awp-predict/%i.env
+WorkingDirectory=/srv/awp-predict
+ExecStart=/usr/bin/python3 /srv/awp-predict/predict_monitor.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
